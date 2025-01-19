@@ -1,0 +1,468 @@
+---
+title: Custom Operations
+sidebar_position: 3
+---
+
+------------------------------------------------------------------------
+
+
+<a id="csdl.core.custom_operation"></a>
+
+# csdl.core.custom\_operation
+
+<a id="csdl.core.custom_operation.CustomOperation"></a>
+
+## CustomOperation Objects
+
+```python
+class CustomOperation(Operation)
+```
+
+<a id="csdl.core.custom_operation.CustomOperation.initialize"></a>
+
+### initialize
+
+```python
+def initialize()
+```
+
+User defined method to declare parameter values. Parameters are
+compile time constants (neither inputs nor outputs to the model)
+and cannot be updated at runtime. Parameters are intended to
+make a ``CustomOperation`` subclass definition generic, and therefore
+reusable. The example below shows how a ``CustomOperation`` subclass
+definition uses parameters and how the user can set parameters
+when constructing the example ``CustomOperation`` subclass. Note
+that the user never instantiates nor inherits directly from the
+``CustomOperation`` base class.
+
+**Example**
+
+.. code-block:: python
+
+    # in this example, we inherit from ExplicitOperation, but
+    # the user can also inherit from ImplicitOperation
+    class Example(ExplicitOperation):
+        def initialize(self):
+            self.parameters.declare('in_name', types=str)
+            self.parameters.declare('out_name', types=str)
+
+        def define(self):
+            # use parameters declared in ``initialize``
+            in_name = self.parameters['in_name']
+            out_name = self.parameters['out_name']
+
+            self.add_input(in_name)
+            self.add_output(out_name)
+            self.declare_derivatives(out_name, in_name)
+
+        # define run time behavior by defining other methods...
+
+    # compile using Simulator imported from back end...
+    sim = Simulator(
+        Example(
+            in_name='x',
+            out_name='y',
+        ),
+    )
+
+<a id="csdl.core.custom_operation.CustomOperation.define"></a>
+
+### define
+
+```python
+def define()
+```
+
+User defined method to define custom operation
+
+**Example**
+
+.. code-block:: python
+
+    def define(self):
+        self.add_input('Cl')
+        self.add_input('Cd')
+        self.add_input('rho')
+        self.add_input('V')
+        self.add_input('S')
+        self.add_output('L')
+        self.add_output('D')
+
+        # declare derivatives of all outputs wrt all inputs
+        self.declare_derivatives('*', '*'))
+
+<a id="csdl.core.custom_operation.CustomOperation.add_input"></a>
+
+### add\_input
+
+```python
+def add_input(name, val=1.0, shape=None, src_indices=None, flat_src_indices=None, units=None, desc='', tags=None, shape_by_conn=False, copy_shape=None)
+```
+
+Add an input to this operation.
+
+**Example**
+
+.. code-block:: python
+
+    class Example(ExplicitOperation):
+        def define(self):
+            self.add_input('Cl')
+            self.add_input('Cd')
+            self.add_input('rho')
+            self.add_input('V')
+            self.add_input('S')
+            self.add_output('L')
+            self.add_output('D')
+
+        # ...
+
+    class Example(ImplicitOperation):
+        def define(self):
+            self.add_input('a', val=1.)
+            self.add_input('b', val=-4.)
+            self.add_input('c', val=3.)
+            self.add_output('x', val=0.)
+
+        # ...
+
+<a id="csdl.core.custom_operation.CustomOperation.add_output"></a>
+
+### add\_output
+
+```python
+def add_output(name, val=1.0, shape=None, units=None, res_units=None, desc='', lower=None, upper=None, ref=1.0, ref0=0.0, res_ref=1.0, tags=None, shape_by_conn=False, copy_shape=None)
+```
+
+Add an output to this operation.
+
+**Example**
+
+.. code-block:: python
+
+    class Example(ExplicitOperation):
+        def define(self):
+            self.add_input('Cl')
+            self.add_input('Cd')
+            self.add_input('rho')
+            self.add_input('V')
+            self.add_input('S')
+            self.add_output('L')
+            self.add_output('D')
+
+        # ...
+
+    class Example(ImplicitOperation):
+        def define(self):
+            self.add_input('a', val=1.)
+            self.add_input('b', val=-4.)
+            self.add_input('c', val=3.)
+            self.add_output('x', val=0.)
+
+        # ...
+
+<a id="csdl.core.custom_operation.CustomOperation.declare_derivatives"></a>
+
+### declare\_derivatives
+
+```python
+def declare_derivatives(of, wrt, dependent=True, rows=None, cols=None, val=None, method='exact', step=None, form=None, step_calc=None)
+```
+
+Declare partial derivatives of each output with respect to each
+input (ExplicitOperation) or each residual associated with an output with
+respect to the input/output (ImplicitOperation).
+
+.. code-block:: python
+
+    class Example(ExplicitOperation):
+        def define(self):
+            self.add_input('Cl')
+            self.add_input('Cd')
+            self.add_input('rho')
+            self.add_input('V')
+            self.add_input('S')
+            self.add_output('L')
+            self.add_output('D')
+
+            # declare derivatives of all outputs wrt all inputs
+            self.declare_derivatives('*', '*')
+
+        # ...
+
+    class Example(ImplicitOperation):
+        def define(self):
+            self.add_input('a', val=1.)
+            self.add_input('b', val=-4.)
+            self.add_input('c', val=3.)
+            self.add_output('x', val=0.)
+            # declare derivative of residual associated with x
+            # wrt x
+            self.declare_derivatives('x', 'x')
+            # declare derivative of residual associated with x
+            # wrt a, b, c
+            self.declare_derivatives('x', ['a','b','c'])
+
+            self.linear_solver = ScipyKrylov()
+            self.nonlinear_solver = NewtonSolver(solve_subsystems=False)
+
+        # ...
+
+
+
+
+<a id="csdl.core.custom_explicit_operation"></a>
+
+# csdl.core.custom\_explicit\_operation
+
+<a id="csdl.core.custom_explicit_operation.CustomExplicitOperation"></a>
+
+## CustomExplicitOperation Objects
+
+```python
+class CustomExplicitOperation(CustomOperation)
+```
+
+<a id="csdl.core.custom_explicit_operation.CustomExplicitOperation.compute"></a>
+
+### compute
+
+```python
+def compute(inputs, outputs)
+```
+
+Define outputs as an explicit function of the inputs
+
+**Example**
+
+.. code-block:: python
+
+    def compute(self, inputs, outputs):
+        outputs['L'] = 1/2 * inputs['Cl'] * inputs['rho'] * inputs['V']**2 * inputs['S']
+        outputs['D'] = 1/2 * inputs['Cd'] * inputs['rho'] * inputs['V']**2 * inputs['S']
+
+<a id="csdl.core.custom_explicit_operation.CustomExplicitOperation.compute_derivatives"></a>
+
+### compute\_derivatives
+
+```python
+def compute_derivatives(inputs, derivatives)
+```
+
+User defined method to compute partial derivatives for this
+operation
+
+**Example**
+
+.. code-block:: python
+
+    def compute(self, inputs, outputs):
+        outputs['L'] = 1/2 * inputs['Cl'] * inputs['rho'] * inputs['V']**2 * inputs['S']
+        outputs['D'] = 1/2 * inputs['Cd'] * inputs['rho'] * inputs['V']**2 * inputs['S']
+
+    def compute_derivatives(self, inputs, derivatives):
+        derivatives['L', 'Cl'] = 1/2 * inputs['rho'] * inputs['V']**2 * inputs['S']
+        derivatives['L', 'rho'] = 1/2 * inputs['Cl'] * inputs['V']**2 * inputs['S']
+        derivatives['L', 'V'] = inputs['Cl'] * inputs['rho'] * inputs['V'] * inputs['S']
+        derivatives['L', 'S'] = 1/2 * inputs['Cl'] * inputs['rho'] * inputs['V']**2
+
+        derivatives['D', 'Cd'] = 1/2 * inputs['rho'] * inputs['V']**2 * inputs['S']
+        derivatives['D', 'rho'] = 1/2 * inputs['Cd'] * inputs['V']**2 * inputs['S']
+        derivatives['D', 'V'] = inputs['Cd'] * inputs['rho'] * inputs['V'] * inputs['S']
+        derivatives['D', 'S'] = 1/2 * inputs['Cd'] * inputs['rho'] * inputs['V']**2
+
+<a id="csdl.core.custom_explicit_operation.CustomExplicitOperation.compute_jacvec_product"></a>
+
+### compute\_jacvec\_product
+
+```python
+def compute_jacvec_product(inputs, d_inputs, d_outputs, mode)
+```
+
+[Optional] Implement partial derivatives by computing a
+matrix-vector product
+
+*Example*
+
+.. code-block:: python
+
+    def compute(self, inputs, outputs):
+        outputs['area'] = inputs['length'] * inputs['width']
+
+    def compute_jacvec_product(self, inputs, d_inputs, d_outputs, mode):
+        if mode == 'fwd':
+            if 'area' in d_outputs:
+                if 'length' in d_inputs:
+                    d_outputs['area'] += inputs['width'] * d_inputs['length']
+                if 'width' in d_inputs:
+                    d_outputs['area'] += inputs['length'] * d_inputs['width']
+        elif mode == 'rev':
+            if 'area' in d_outputs:
+                if 'length' in d_inputs:
+                    d_inputs['length'] += inputs['width'] * d_outputs['area']
+                if 'width' in d_inputs:
+                    d_inputs['width'] += inputs['length'] * d_outputs['area']
+
+
+
+
+<a id="csdl.core.custom_implicit_operation"></a>
+
+# csdl.core.custom\_implicit\_operation
+
+<a id="csdl.core.custom_implicit_operation.CustomImplicitOperation"></a>
+
+## CustomImplicitOperation Objects
+
+```python
+class CustomImplicitOperation(CustomOperation)
+```
+
+<a id="csdl.core.custom_implicit_operation.CustomImplicitOperation.evaluate_residuals"></a>
+
+### evaluate\_residuals
+
+```python
+def evaluate_residuals(inputs, outputs, residuals)
+```
+
+User defined method to evaluate residuals
+
+*Example*
+
+.. code-block:: python
+
+    def evaluate_residuals(self, inputs, outputs, residuals):
+        x = outputs['x']
+        a = inputs['a']
+        b = inputs['b']
+        c = inputs['c']
+        residuals['x'] = a * x**2 + b * x + c
+
+<a id="csdl.core.custom_implicit_operation.CustomImplicitOperation.compute_derivatives"></a>
+
+### compute\_derivatives
+
+```python
+def compute_derivatives(inputs, outputs, derivatives)
+```
+
+[Optional] User defined method to evaluate exact derivatives of
+residuals wrt inputs and outputs
+
+*Example*
+
+.. code-block:: python
+
+    def compute_derivatives(self, inputs, outputs, derivatives):
+        a = inputs['a']
+        b = inputs['b']
+        x = outputs['x']
+
+        derivatives['x', 'a'] = x**2
+        derivatives['x', 'b'] = x
+        derivatives['x', 'c'] = 1.0
+        derivatives['x', 'x'] = 2 * a * x + b
+
+        # only necessary if implementing `apply_inverse_jacobian`
+        self.inv_jac = 1.0 / (2 * a * x + b)
+
+<a id="csdl.core.custom_implicit_operation.CustomImplicitOperation.solve_residual_equations"></a>
+
+### solve\_residual\_equations
+
+```python
+def solve_residual_equations(inputs, outputs)
+```
+
+[Optional] User defined method to solve residual equations,
+computing the outputs given the inputs. Define this method to
+implement a custom solver. Assigning a nonlinear solver will
+cause `evaluate_residual_equations` to run instead.
+
+*Example*
+
+.. code-block:: python
+
+    def solve_residual_equations(self, inputs, outputs):
+        a = inputs['a']
+        b = inputs['b']
+        c = inputs['c']
+        outputs['x'] = (-b + (b ** 2 - 4 * a * c) ** 0.5) / (2 * a)
+
+<a id="csdl.core.custom_implicit_operation.CustomImplicitOperation.apply_inverse_jacobian"></a>
+
+### apply\_inverse\_jacobian
+
+```python
+def apply_inverse_jacobian(d_outputs, d_residuals, mode)
+```
+
+[Optional] Solve linear system. Invoked when solving coupled
+linear system; i.e. when solving Newton system to update
+implicit state variables, and when computing total derivatives
+
+*Example*
+
+.. code-block:: python
+
+    # using self.inv_jac defined in `compute_derivatives` example
+    def apply_inverse_jacobian( self, d_outputs, d_residuals, mode)
+        if mode == 'fwd':
+            d_outputs['x'] = self.inv_jac * d_residuals['x']
+        elif mode == 'rev':
+            d_residuals['x'] = self.inv_jac * d_outputs['x']
+
+<a id="csdl.core.custom_implicit_operation.CustomImplicitOperation.compute_jacvec_product"></a>
+
+### compute\_jacvec\_product
+
+```python
+def compute_jacvec_product(inputs, outputs, d_inputs, d_outputs, d_residuals, mode)
+```
+
+[Optional] Implement partial derivatives by computing a
+matrix-vector product.
+
+*Example*
+
+.. code-block:: python
+
+    def compute_jacvec_product(
+            self,
+            inputs,
+            outputs,
+            d_inputs,
+            d_outputs,
+            d_residuals,
+            mode,
+        ):
+            a = inputs['a']
+            b = inputs['b']
+            c = inputs['c']
+            x = outputs['x']
+            if mode == 'fwd':
+                if 'x' in d_residuals:
+                    if 'x' in d_outputs:
+                        d_residuals['x'] += (2 * a * x + b) * d_outputs['x']
+                    if 'a' in d_inputs:
+                        d_residuals['x'] += x ** 2 * d_inputs['a']
+                    if 'b' in d_inputs:
+                        d_residuals['x'] += x * d_inputs['b']
+                    if 'c' in d_inputs:
+                        d_residuals['x'] += d_inputs['c']
+            elif mode == 'rev':
+                if 'x' in d_residuals:
+                    if 'x' in d_outputs:
+                        d_outputs['x'] += (2 * a * x + b) * d_residuals['x']
+                    if 'a' in d_inputs:
+                        d_inputs['a'] += x ** 2 * d_residuals['x']
+                    if 'b' in d_inputs:
+                        d_inputs['b'] += x * d_residuals['x']
+                    if 'c' in d_inputs:
+                        d_inputs['c'] += d_residuals['x']
+
+
+
+

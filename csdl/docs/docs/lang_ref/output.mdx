@@ -1,0 +1,41 @@
+---
+title: Output
+sidebar_position: 2
+---
+
+------------------------------------------------------------------------
+
+
+<a id="csdl.core.concatenation"></a>
+
+# csdl.core.concatenation
+
+<a id="csdl.core.concatenation.Concatenation"></a>
+
+## Concatenation Objects
+
+```python
+class Concatenation(Output)
+```
+
+Class for creating an explicit output
+
+<a id="csdl.core.concatenation.Concatenation.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(name, val=1.0, shape: Tuple[int] = (1, ), units=None, desc='', tags=None, shape_by_conn=False, copy_shape=None, res_units=None, lower=None, upper=None, ref=1.0, ref0=0.0, res_ref=1.0, *args, **kwargs, *, ,)
+```
+
+Initialize explicit output
+
+**Parameters**
+
+name: str
+    Name of variable to compute explicitly
+shape: Tuple[int]
+    Shape of variable to compute explicitly
+val: Number or ndarray
+    Initial value of variable to compute explicitly
+

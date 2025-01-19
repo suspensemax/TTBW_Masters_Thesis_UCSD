@@ -1,0 +1,4 @@
+name: caddee
+channels:
+  - defaults
+prefix: /home/rajashekar/anaconda3/envs/caddee

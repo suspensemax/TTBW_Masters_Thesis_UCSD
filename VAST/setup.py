@@ -1,0 +1,52 @@
+from setuptools import setup, find_packages
+
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
+setup(
+    name='VAST',
+    version='0.0.1',
+    author='Jiayao Yan',
+    author_email='jiy352@ucsd.edu',
+    license='LGPLv3+',
+    keywords='vortex-based aerodynamic solver toolkit',
+    url='http://github.com/jiy352/vast',
+    description='vortex-based aerodynamic solver toolkit',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    packages=find_packages(),
+    python_requires='>=3.7',
+    platforms=['any'],
+    install_requires=[
+        'myst-nb',
+        'sphinx_rtd_theme',
+        'sphinx-copybutton',
+        'sphinx-autoapi',
+        'numpydoc',
+        'gitpython',
+        'sphinxcontrib-bibtex',
+        'setuptools',
+        'wheel',
+        'twine',
+        'python_csdl_backend @ git+https://github.com/LSDOlab/python_csdl_backend',
+        'csdl @ git+https://github.com/LSDOlab/csdl',  
+        # 'ozone @ git+https://github.com/LSDOlab/ozone', 
+    ],
+    classifiers=[
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)',
+        'Operating System :: OS Independent',
+        'Intended Audience :: Developers',
+        'Natural Language :: English',
+        'Topic :: Documentation',
+        'Topic :: Documentation :: Sphinx',
+        'Topic :: Software Development',
+        'Topic :: Software Development :: Documentation',
+        'Topic :: Software Development :: Testing',
+        'Topic :: Software Development :: Libraries',
+    ],
+)

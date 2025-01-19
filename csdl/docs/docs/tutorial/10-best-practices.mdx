@@ -1,0 +1,344 @@
+---
+title: Best Practices
+---
+
+------------------------------------------------------------------------
+
+
+This page provides some best practices to help you avoid making common
+errors when using CSDL.
+This section assumes you have read the preceding sections in this
+tutorial.
+These best practices are not required, but _highly recommended_.
+If you run into any issues because of something you did wrong, the
+[Troubleshooting](../troubleshooting) will be more appropriate.
+
+## Read the error messages
+
+``csdl`` has early error messages meant to prevent users from providing
+ill-formed or physically meaningless model specifications.
+The error messages should be helpful when debugging model
+specifications.
+Ideally, all errors should occur within ``Model``, and if ``Model`` does
+not emit an error, then the back end will not emit an error and the
+compilation will be successful.
+
+## Use the same (compile time) name for the Python Variable object as the (run time) name for the CSDL variable
+
+```py
+lift = self.declare_variable('lift')
+```
+
+not
+
+```py
+l = self.declare_variable('lift')
+```
+
+This is not required, but it avoids confusion.
+
+<!--
+## Do not redefine a variable
+
+CSDL is designed so that variables are immutable -- once a variable is
+defined, it cannot be modified.
+There are two reasons for this.
+First, it makes code easier to reason about.
+If a variable is defined once, then there is no confusion about what a
+variable represents when it is used later.
+The second reason is that each variable is actually a node in the IR.
+
+Unfortunately, Python does not enforce immutability, so it's possible to
+bind the same name to a new object in large code bases.
+
+Here's an example to illustrate the behavior.
+
+```py
+class Example(Model):
+    def define(self):
+        r = self.declare_variable('r')
+        s = 3*r
+        self.register_output('s', s)
+
+        t = s**2
+        self.register_output('t', t)
+
+        s = 2*t
+        u = s + 4
+        self.register_output('u', u)
+```
+
+The first `s` and the second
+
+The ``=`` operator doesn't assign the value on the right hand side to a
+variable on the left hand side; instead, ``=`` binds the variable name
+on the left hand side to the value on the right.
+Each variable is simply a reference to an object in memory.
+If a variable name is bound to a different object, then there is more
+than one object that has been referenced with the same name and it
+becomes unclear which object is being referenced in other parts of the
+code.
+Unfortunately, there is no way for Python to enforce that one variable
+name can only be bound to one object throughout the lifetime of that
+variable.
+
+-->
+
+## Prefer Promotion Over Connection
+
+CSDL promotes variable names from child models by default.
+In some cases, promotions are not allowed, and connections are required.
+Promoting more than one variable from more than one child model is
+allowed if both variables are constructed using
+`Model.declare_variable`.
+If two variables are outputs, either constructed by
+`Model.create_output`, or registered using `Model.register_output`, and
+they have the same name, then they cannot be promoted to the same level
+in the hierarchy.
+
+Connections are meant for connecting two variables with different names,
+or at different levels within the model hierarchy.
+
+```py
+self.connect('child_1.a', 'child_2.b')
+self.connect('child_1.c', 'child_2.grandchild.b')
+```
+
+## Connect variables immediately after declaring them
+
+This helps improve code readability, which may reduce the amount of time
+users need to spend rewriting their models.
+
+In order to use a varible from a different model in the hierarchy, it is
+necessary to declare the variable as it will be used in the current
+model.
+In cases where variables are not connected automatically by promotion,
+CSDL gives users a way to connect variables via the `Model.connect`
+method.
+Calling the `Model.connect` method before or after variables are
+declared or defined is valid CSDL code.
+To illustrate this, see the following snippet.
+
+```py
+self.add(
+    MyModel(),
+    name='mymodel',
+    promotes=[],
+)
+
+y = self.declare('y')
+
+z = f(y)
+self.register_output('z', z)
+
+# `MyModel` contains an output 'x', but it's not clear that 'x' is used
+# in the current model until this line
+self.connect('mymodel.x', 'y')
+```
+
+The CSDL compiler knows that `'mymodel.x'` and `'y'` are variables when
+`self.connect` is called, but a user reading this code from top to
+bottom will need to pause and search for where `'y'` was declared.
+Consider the next snippet:
+
+```py
+
+# `MyModel` contains an output 'x', and it's clear that 'x' is used
+# in the current model, but by the time the user reaches the line
+# declaring 'y', the user may forget that this connection was issued,
+# and misunderstand what 'y' represents or how it is defined.
+self.connect('mymodel.x', 'y')
+self.add(
+    MyModel(),
+    name='mymodel',
+    promotes=[],
+)
+
+y = self.declare('y')
+
+z = f(y)
+self.register_output('z', z)
+```
+
+This snippet is slightly better for a model of this size, but it's still
+not the best solution.
+For larger models, placing connections at the beginning may lead to
+using up the user's working memory, making it more difficult to
+understand and maintain model code.
+
+Finally, we have the best solution:
+
+```py
+self.add(
+    MyModel(),
+    name='mymodel',
+    promotes=[],
+)
+
+y = self.declare('y')
+# `MyModel` contains an output 'x', and it's clear that 'x' is used
+# in the current model as 'y' immediately after declaring 'y'
+self.connect('mymodel.x', 'y')
+
+z = f(y)
+self.register_output('z', z)
+```
+
+In this snippet, the user will know immediately where 'y' is defined and
+that 'y' will not have a default value of `1`.
+The user doesn't have to remember that 'y' was connected earlier, nor
+will the user be surprised later by a connection changing the user's
+understanding of the definition of 'y'.
+
+## Don't redefine variables
+
+Python does not enforce variable immutability, so if a variable is redefined (or
+in Python parlance, if a variable name is bound to a new reference),
+then the object in memory storing the variable data is not in use in
+later parts of the code.
+
+This means that your `Model` will lose track of the original variable.
+Either the original variable will be ignored during dead code removal,
+or the original variable will not be used in other parts of the code
+where it should have been, leading to unexpected/incorrect behavior in
+the final simulation.
+
+## When creating multiple variables in a compile time loop to aggregate later, store them in a list
+
+In Python, you might be used to mutating
+
+```py
+for i, obj in enumerate(iterable):
+    v[i] += obj
+```
+
+use
+
+```py
+l = []
+for i, obj in enumerate(iterable):
+    l.append(obj)
+s = csdl.sum(*l)
+```
+
+or better yet,
+
+```py
+x = self.create_ouput('x', shape=(n,))
+# concatenate some variables in x...
+s = csdl.sum(*filter(lambda x: True, [x[i] for i in range(n)]))
+```
+
+## Issue connections at the lowest possible level in the model hierarchy {#connections}
+
+
+Instead of
+
+```py
+self.connect('A.B.C.x', 'A.B.y')
+```
+
+use
+
+```py
+self.connect('B.C.x', 'B.y')
+```
+
+within the `Model` named `'A'`.
+
+## Always assign types to parameters
+
+Instead of
+
+```py
+self.parameters.declare('cubesats')
+self.parameters.declare('groundstations')
+self.parameters.declare('timesteps')
+self.parameters.declare('stepsize')
+```
+
+use
+
+```py
+self.parameters.declare('cubesats', types=dict)
+self.parameters.declare('groundstations', types=dict)
+self.parameters.declare('timesteps', types=int)
+self.parameters.declare('stepsize', types=float)
+```
+
+
+## Register outputs immediately after they are defined
+
+Prefer
+
+```py
+a = f(x)
+self.register('a', a)
+```
+
+over
+
+```py
+a = f(x)
+
+# ...
+
+self.register('a', a)
+```
+
+This will make your code easier to read (and easier to debug).
+Remember, you can always use a variable after it is registered.
+
+```py
+a = f(x)
+self.register('a', a)
+
+# ...
+
+b = g(a)
+
+# ...
+```
+
+## Do not append type information to class/object names
+
+For example,
+
+```py
+class AirfoilModel(Model):
+    # ...
+```
+
+The `AirfoilModel` is a `Model` subclass.
+This information is already captured in the definition of
+`AirfoilModel`.
+Insetead, use `Airfoil`:
+
+```py
+class Airfoil(Model):
+    # ...
+```
+
+There can't be two Python objects named `Airfoil` in the same scope, so
+there's no risk of confusing what `Airfoil` means in a given context.
+
+## Use Python ints, floats, and NumPy arays wherever possible, until you need derivatives
+
+Python objects used to define a model are compile time
+constants; they are always hardcoded values in the final program (if
+they are present at all).
+This provides a performance boost over using CSDL variables because the
+history of operations for computing compile time constants (e.g.
+`2*np.pi`) is not part of the intermediate representation, so no
+additional code is generated in the final program.
+
+Defining a model definition using entirely Python ints, floats, and
+NumPy arrays however, not only results in a simulation without access to
+derivatives, but this results in no program being generated from CSDL
+code at all.
+
+If you are using CSDL for optimization, or would like to leave that
+option available for code that you initially develop only for running
+analyses, you will need to use CSDL variables, but wherever you don't
+need derivatives, compile time constants will give your final code a
+performance boost.

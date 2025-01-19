@@ -1,0 +1,5 @@
+sim['wing']
+
+sim['op_wing_wake_coords']
+
+sim['op_wing_gamma_w']

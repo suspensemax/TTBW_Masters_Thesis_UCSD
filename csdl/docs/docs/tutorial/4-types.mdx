@@ -1,0 +1,259 @@
+---
+title: Variable Types
+---
+
+------------------------------------------------------------------------
+
+## (Declared) Variable
+
+All variables are instances of the `Variable` base class or one of its
+subclasses.
+In order to use a variable, it must first be declared using
+`Model.declare_variable`, which returns a `DeclaredVariable` object.
+
+A declared variable represents an input to the model from either a
+_parent model_ or a _child model_.
+(Constructing model hierarchies is covered in detail in
+the section on [Object Oriented Programming](/docs/tutorial/oo).)
+A declared variable is so called because it may or may not be defined
+until the model hierarchy is defined.
+
+:::note
+Any object of `Variable` class or its subclasses supports establishing a
+dependency on an element or a slice of the array that will be
+constructed at run time using similar syntax to NumPy.
+
+```py
+a = b[:9]
+```
+:::
+
+:::important
+Unlike NumPy, indexing a `Variable` does not automatically remove an axis with
+dimension `1`.
+This can lead to problems in user code that may be resolved similar to
+[how this is resolved](/docs/troubleshooting#broadcasting).
+:::
+
+Each variable in CSDL has a name.
+CSDL variable names are automatically generated unless the user provides
+a name by calling `Model.declare_variable`, `Model.create_input`,
+`Model.create_output`, or `Model.register_output`.
+
+:::note
+Calls to `Model.declare_variable` need not be at the beginning of the
+`Model.define` method.
+Since `Model.declare_variable` is used for declaring variables from
+parent or child submodels, it may be used after adding a submodel.
+:::
+
+## Input
+
+Declared variables provide a way for models in different levels and
+branches of the model hierarchy to specify data transfers between
+corresponding parts of a simulation.
+They do not however, provide a way to enforce that data be transfered
+_into_ the simulation, _from outside_ the simulation.
+The `Model.create_input` method provides a way to signal to CSDL that
+data _must_ be provided as an input to the simulation, and not as a data
+transfer between different parts of a simulation.
+This is useful for defining optimization problems, where an optimizer
+updates the [design variables](/docs/tutorial/optimization).
+
+:::note
+An input to the main model in CSDL can be thought of as an entry point
+to the resulting simulation, like an argument to the `main` function in
+C.
+:::
+
+CSDL inputs do not have to be created at the top level, or "main" model,
+however.
+Values for inputs can be set for a `Simulator` after compile time
+before each simulation, regardless of where they are created in the
+hierarchy.
+
+:::important
+A declared `Variable` is also _allowed_ to be an input to the
+overall simulation, but an `Input` is _required_  to be an input to the
+overall simulation.
+Remember that an `Input` object represents an input whose source is
+_outside_ the simulation, and is thus an input to the _entire_
+simulation.
+In contrast, a declared `Variable` is a data transfer within the
+simulation at a point corresponding to the _current_ model, and may be
+an output of a _parent model_, _child model_, or external code.
+:::
+
+## Output
+
+Models define variables in terms of other variables.
+The resulting variable is an output, which is represented by an `Output`
+object.
+To create an output, simply define a new variable using basic
+mathematical expressions or the standard library.
+
+```py
+x = self.declare_variable('x')
+y = csdl.sin(x)
+self.register_output('y', y)
+```
+
+The `Model.register_output` method provides a way to name an output.
+In order to ensure that an `Output` generates executable code, it or one
+of its dependencies must be registered as an output.
+
+## Concatenation
+
+The `Model.create_output` returns a `Concatenation` for concatenating
+values.
+The `Concatenation` class inherits from `Output`
+An object of class `Concatenation` differs from an `Output` in that an
+`Output` is defined in terms of other `Variable` objects, and then
+registered, but a `Concatenation` object is registered first, and then
+defined in terms of other `Variable` objects.
+The `Concatenation` class also supports multidimensional indexed
+assignment, which behaves the same way that NumPy indexed assignment
+does, except that
+[broadcasting](/docs/troubleshooting#broadcasting) is not supported.
+
+```py
+p = self.create_output('p', shape=(2,))
+p[0] = x
+p[1] = y
+```
+
+In [Getting Started](/docs/tutorial/getting-started), we mentioned that
+CSDL variables are immutable.
+This is still true of `Concatenation` because each index can have at
+most one assignment.
+There can be no overlap between indices used in assignment in different
+parts of the code.
+Some indices may be left to their default values.
+
+:::important
+You don't need to call `Model.create_output` if your `Output` is not a
+concatenation of variables.
+See
+[Troubleshooting](/docs/troubleshooting#i-get-an-output-not-defined-error-but-i-defined-my-output).
+:::
+
+:::important
+When you call `Model.create_output`, you don't need to call
+`Model.register_output` later.
+See
+[Troubleshooting](/docs/troubleshooting#i-get-an-output-not-defined-error-but-i-defined-my-output).
+:::
+
+### For NumPy Users
+
+It's very common to preallocate NumPy variables with `np.zeros`,
+`np.eye`, etc. and then assign only some values to a NumPy array.
+The `Concatenation` variable type serves this specific purpose, but it
+has a slightly different API to maintain immutability.
+
+You might be used to defining an array in Python to define a coordinate
+rotation matrix:
+
+```py
+R1 = np.zeros((3, 3))
+R1[0, 0] = 1
+R1[1, 1] = np.cos(theta)
+R1[1, 2] = np.sin(theta)
+R1[2, 1] = -np.sin(theta)
+R1[2, 2] = np.cos(theta)
+```
+
+In the above example, `R1` is assigned values of `0` at _run time_, and
+then some of those values are _mutated at run time_.
+Python allows users to update the values of any of the elments in `R1`
+freely.
+CSDL on the other hand, does not.
+In CSDL, the `val` argument in `Model.create_output` sets the _default
+value_, which if not overwritten at compile time, _remains constant at
+run time_.
+If the value is overwritten at compile time, then the default value _is
+never set at run time_.
+
+Let's take a look at how `R1` is defined in CSDL:
+
+```py
+r1_val = np.zeros((3, 3))
+r1_val[0, 0] = 1
+R1 = self.create_output('R1', val=r1_val)
+R1[1, 1] = csdl.cos(theta)
+R1[1, 2] = csdl.sin(theta)
+R1[2, 1] = -csdl.sin(theta)
+R1[2, 2] = csdl.cos(theta)
+```
+
+In this example, both `R1` and `theta` are CSDL variables, which means
+the history of operations, _not the run time values_ will be stored in
+the objects `R1` and `theta`.
+The `val` argument tells CSDL that, unless otherwise specified, the run
+time value for the array `R1` is an array of zeros with shape `(3,3)` (a
+3x3 matrix).
+We then tell CSDL to store a history of operations for individual
+indices for `R1`.
+
+:::note
+Run time values cannot be assigned directly to an index of a
+`Concatenation`.
+Only individual indices of the `val` argument value can be assigned.
+This is why `r_val` is created and then assigned a constant value, so
+that `R1` will have a value of `1` at the index `(0, 0)`.
+:::
+
+This history of operations define the rotation matrix.
+Since indices are not allowed to overlap, CSDL is guaranteed to assign a
+value to each index of `R1` exactly _once_ at run time.
+The indices `(0,1)`, `(0,2)`, `(1,0)`, and `(2,0)` are left without a
+history of operations to define their values at run time, so CSDL will
+assign them whatever values were given in the `val` argument in
+`Model.create_output`.
+
+:::note
+NumPy array values are still allowed to mutate within
+`Model.define`, so if you need to construct a constant at compile time,
+you still have that flexibility because _NumPy arrays are CSDL compile
+time constants_. You can think of compile time constants as hard coded
+values in the final program.
+:::
+
+Sometimes it's desirable to assign values to a `Concatenation` within a
+function instead of defining a new `Model` each time.
+A `Concatenation` however, cannot be created without a call to the
+`Model.create_output` method, so a `Concatenation` cannot be
+instantiated within a standalone function.
+
+To define a `Concatenation` using a function, you will need to pass a
+`Concatenation` variable that has no history of operations assigned to
+any of its indices.
+The example above may be rewritten as follows.
+
+```py
+def rotate_x(R1, theta):
+    R1[1, 1] = csdl.cos(theta)
+    R1[1, 2] = csdl.sin(theta)
+    R1[2, 1] = -csdl.sin(theta)
+    R1[2, 2] = csdl.cos(theta)
+
+r1_val = np.zeros((3, 3))
+r1_val[0, 0] = 1
+R1 = self.create_output('R1', val=r1_val)
+rotate_x(R1, theta)
+```
+
+Strictly speaking, `rotate_x` does mutate the _Python_ object `R1`, but
+considering that the definition of a `Concatenation` must follow its
+construction, and each index of a `Concatenation` may be assigned a
+history of operations exactly once, this still follows the policy that
+_CSDL variables_ must be immutable.
+Once `rotate_x` is called, the definition for `R1` is complete, enabling
+meaningful usage of `R1` in later expressions.
+
+:::note
+The default value must still be set during the call to
+`Model.create_output`.
+If some elements of a `Contatenation` are not set using CSDL, they will
+retain their default values at run time.
+:::
