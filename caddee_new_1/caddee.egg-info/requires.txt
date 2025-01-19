@@ -1,0 +1,22 @@
+numpy
+pytest
+pandas
+regex
+myst-nb
+vedo
+matplotlib
+csdl@ git+https://github.com/LSDOlab/csdl.git
+python_csdl_backend@ git+https://github.com/LSDOlab/python_csdl_backend.git
+m3l@ git+https://github.com/LSDOlab/m3l.git
+sphinx
+sphinx_rtd_theme
+sphinx-copybutton
+sphinx-autoapi
+numpydoc
+gitpython
+sphinxcontrib-collections@ git+https://github.com/anugrahjo/sphinx-collections.git
+sphinxcontrib-bibtex
+setuptools
+wheel
+twine
+astroid==2.15.5

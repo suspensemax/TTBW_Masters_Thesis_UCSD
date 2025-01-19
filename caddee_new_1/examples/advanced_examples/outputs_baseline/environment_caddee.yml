@@ -1,0 +1,4 @@
+name: caddee_trial
+channels:
+  - defaults
+prefix: /home/rajashekar/anaconda3/envs/caddee_trial
